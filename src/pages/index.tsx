@@ -2,27 +2,31 @@ import Head from "next/head";
 import Image from "next/image";
 import { AppBar, Box, Drawer, ThemeProvider, Toolbar } from "@mui/material";
 import sanctuaryTheme from "@/styles/sanctuaryTheme";
+import { useRouter } from "next/router";
+import { useEffect, useState } from "react";
+import { supabase } from '@/lib/supabaseClient';
+
 
 
 export default function Home() {
-  // const router = useRouter();
-  // const [authenticated, setAuthenticated] = useState(false);
+  const router = useRouter();
+  const [authenticated, setAuthenticated] = useState(false);
 
-  // useEffect(() => {
+  useEffect(() => {
     
-  //   const checkAuth = async () => {
-  //     const { data: { user } } = await supabase.auth.getUser();
-  //     console.log(user);
-  //     if (!user) {
-  //       router.push('/login'); // Redirect to login if not authenticated
-  //     } else {
-  //       setAuthenticated(true);
-  //     }
-  //   };
-  //   checkAuth();
-  // }, [router]);
+    const checkAuth = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      console.log(user);
+      if (!user) {
+        router.push('/login'); // Redirect to login if not authenticated
+      } else {
+        setAuthenticated(true);
+      }
+    };
+    checkAuth();
+  }, [router]);
 
-  // if (!authenticated) return null; // Prevent rendering until authentication is checked
+  if (!authenticated) return null; // Prevent rendering until authentication is checked
 
   return (
 <>
@@ -52,7 +56,7 @@ export default function Home() {
       <div
        
       >
-       Hello world
+       
       </div>
     </>
 

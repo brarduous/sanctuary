@@ -17,9 +17,10 @@ export default function Login() {
   }, [router]);
 
   const signInWithGoogle = async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
+    const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
     });
+    console.log('Sign in data:', data);
     if (error) console.error('Error signing in:', error.message);
   };
 
