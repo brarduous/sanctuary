@@ -1,28 +1,67 @@
 // filepath: /Users/brandon/Documents/GitHub/sanctuary/sanctuary/src/pages/login.tsx
-import { supabase } from '@/lib/supabaseClient';
 import { useRouter } from 'next/router';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+
+
+// Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+import { getDatabase, ref, set } from "firebase/database";
+import { doc, setDoc } from "firebase/firestore"; 
+
+import { getAnalytics } from "firebase/analytics";
+import {getAuth, getRedirectResult, signInWithPopup, signInWithRedirect} from "firebase/auth";
+import { GoogleAuthProvider } from "firebase/auth";
+
+import { app, db, auth, provider, firestore } from "@/utils/firebaseConfig"; // Ensure this path points to your Firebase configuration file
+
+
+
+
 
 export default function Login() {
   const router = useRouter();
-
   useEffect(() => {
     const checkUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user =  getAuth(app).currentUser;
+      console.log(user);
       if (user) {
         router.push('/'); // Redirect to home if already logged in
       }
     };
     checkUser();
-  }, [router]);
+  }, [router, auth]);
 
   const signInWithGoogle = async () => {
-    const { data, error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
+    signInWithPopup(auth, provider).then((result) => {
+      console.log(result);
+      const credential = GoogleAuthProvider.credentialFromResult(result);
+      const token = credential?.accessToken;
+      const user = result.user;
+      setDoc(doc(firestore, "users", user.uid), {
+        email: user.email,
+        name: user.displayName,
+        profilePicture: user.photoURL,
+        givenName: user.displayName?.split(" ")[0],
+        familyName: user.displayName?.split(" ")[1],   
+      }); 
+
+    set(ref(db, "users/" + user.uid), {
+      email: user.email,
+      name: user.displayName,
+      profilePicture: user.photoURL,
+      givenName: user.displayName?.split(" ")[0],
+      familyName: user.displayName?.split(" ")[1],   
     });
-    console.log('Sign in data:', data);
-    if (error) console.error('Error signing in:', error.message);
-  };
+   
+      localStorage.setItem("user", JSON.stringify({accessToken: token, email: user.email, name: user.displayName, givenName: user.displayName?.split(" ")[0], familyName: user.displayName?.split(" ")[1]}));
+      if (user) {
+        router.push('/'); // Redirect to home if already logged in
+      }
+    });
+    
+  }
+    
+  
 
   return (
     <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
