@@ -1,6 +1,6 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
-import { getDatabase, ref, set } from "firebase/database";
+import { getDatabase, ref, set, child, get} from "firebase/database";
 import { doc, setDoc } from "firebase/firestore";
 import { getFirestore } from "firebase/firestore";
 import { getAnalytics } from "firebase/analytics";
@@ -47,10 +47,58 @@ export const saveSermon = async (sermon:Sermon) => {
     // setDoc(doc(firestore, "users", user.uid), sermon).then((e) => {
     //     console.log("Sermon saved successfully", e);
     // });
-    set(ref(db, "sermons/" + user.uid + "/" + crypto.randomUUID()), sermon).then((e) => {
-      console.log("Sermon saved successfully", e);
-    });
+    return await set(ref(db, "sermons/" + user.uid + "/" + crypto.randomUUID()), sermon);
 
+  } else {
+    console.error("User not authenticated");
+    return null;
+  }
+}
+export const getSermons = async () => {
+  const user = getAuth(app).currentUser;
+  if (user) {
+    const userId = user.uid;
+    const dbRef = ref(db);
+    return await get(child(dbRef, `sermons/${userId}`)).then((snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        console.log("Sermons: ", data);
+        // Convert the object to an array if needed
+        const sermonsArray = Object.keys(data).map((key) => {
+          return { id: key, ...data[key] };
+        }
+        );
+        return sermonsArray;
+      } else {
+        console.log("No data available");
+      }
+    }
+    ).catch((error) => {  
+      console.error("Error getting data: ", error);
+    }
+    );
+  } else {
+    console.error("User not authenticated");
+  }
+} 
+export async function getSermonById(sermonId: string) {
+  const user = getAuth(app).currentUser;
+  if (user) {
+    const userId = user.uid;
+    const dbRef = ref(db);
+    return await get(child(dbRef, `sermons/${userId}/${sermonId}`)).then((snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        console.log("Sermon: ", data);
+        return data;
+      } else {
+        console.log("No data available");
+      }
+    }
+    ).catch((error) => {  
+      console.error("Error getting data: ", error);
+    }
+    );
   } else {
     console.error("User not authenticated");
   }

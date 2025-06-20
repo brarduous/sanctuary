@@ -1,0 +1,234 @@
+import Head from "next/head";
+import Image from "next/image";
+import { AppBar, Autocomplete, Backdrop, Box, Button, Card, CardContent, CircularProgress, Dialog, DialogActions, DialogContent, Drawer, ListItemIcon, ListItemText, MenuItem, MenuList, Select, TextField, ThemeProvider, Toolbar, Typography } from "@mui/material";
+import sanctuaryTheme from "@/styles/sanctuaryTheme";
+import { useRouter } from "next/router";
+import { useEffect, useState } from "react";
+import { supabase } from '@/lib/supabaseClient';
+
+import {books} from "@/lib/declarations";
+
+
+import { app } from "@/utils/firebaseConfig"; // Ensure this path points to your Firebase configuration file
+import { saveSermon, getSermons, saveBibleStudy, getBibleStudies, saveBibleStudyLesson } from "@/utils/supabase";
+
+import HistoryEduIcon from '@mui/icons-material/HistoryEdu';
+import SanctuaryMenu from "@/components/layout/SanctuaryMenu";
+import ScriptureSelector from "@/components/input/ScriptureSelector";
+import { getBibleStudy } from "@/utils/openai";
+import { AutoAwesome } from "@mui/icons-material";
+
+//create Bible Study type
+export type BibleStudy = {
+
+    title: string;
+    subtitle: string;
+    studies?: Lesson[];
+    illustration?: string;
+};
+export type Lesson = {
+    title: string;
+    scripture: string;
+    study_outline: string;
+    study_body: string;
+    reflection_questions: string[];
+    study_id?: string;
+    lesson_number?: number;
+    
+};
+export type Scripture = {
+    book: string;
+    chapter: number;
+    verse: number;
+};
+
+
+export default function BibleStudies() {
+
+    const router = useRouter();
+    const [user, setUser] = useState<any | null>(null);
+    const [bibleStudies, setBibleStudies] = useState<any[]>([]);
+    const [authenticated, setAuthenticated] = useState(false);
+    const [studyModalOpen, setStudyModalOpen] = useState(false);
+    const [studyType, setStudyType] = useState('');
+    const [book, setBook] = useState<any | null>(null);
+    const [studyLength, setStudyLength] = useState(Number);
+    const [loading, setLoading] = useState(true);
+    const [topic, setTopic] = useState('');
+
+    function newBibleStudyFromBook() {
+        setStudyType('book');
+        setStudyModalOpen(true);
+    }
+    function newSermonFromTopic() {
+        setStudyType('topic');
+        setStudyModalOpen(true);
+    }
+    useEffect(() => {
+
+        const checkAuth = async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+            setUser(user);
+            if (!user) {
+                router.push('/login'); // Redirect to login if not authenticated
+            } else {
+                setAuthenticated(true);
+            }
+        };
+        checkAuth();
+        setLoading(false);
+    }, [router]);
+
+    useEffect(() => {
+        getBibleStudies().then((e) => {
+            console.log(e);
+            if (e == null) return;
+
+            setBibleStudies(e);
+        });
+
+    }, [])
+
+    async function createSermon() {
+        setStudyModalOpen(false);
+        setLoading(true);
+        if (book && studyType == 'book') {
+            getBibleStudy(book, studyLength).then((e) => {
+                setLoading(false);
+                setStudyModalOpen(false);
+                if (e == null) return;
+                console.log(e);
+
+                const bibleStudy: BibleStudy = JSON.parse(e);
+                const bibleStudyLessons = bibleStudy.studies;
+                delete bibleStudy.studies;
+                saveBibleStudy(bibleStudy);
+                bibleStudyLessons?.forEach((lesson, index) => {
+                    lesson.lesson_number = index + 1;
+                    saveBibleStudyLesson(lesson).then((e) => {
+                        console.log("Lesson saved successfully", e);
+                    });
+                });
+
+            });
+        }
+        else if (studyType == 'topic') {
+            getBibleStudy(topic, studyLength).then((e) => {
+                setLoading(false);
+
+                if (e == null) return;
+                console.log(e);
+
+
+                const bibleStudy: BibleStudy = JSON.parse(e);
+                const bibleStudyLessons = bibleStudy.studies;
+                delete bibleStudy.studies;
+                saveBibleStudy(bibleStudy).then((study)=>{
+                    let study_id = study.study_id;
+                    bibleStudyLessons?.forEach((lesson, index) => {
+                        lesson.lesson_number = index + 1;
+                        lesson.study_id = study_id;
+                        saveBibleStudyLesson(lesson).then((e) => {
+                            console.log("Lesson saved successfully", e);
+                        });
+                    });
+                });
+                
+
+            })
+        }
+    }
+    if (!authenticated) return null; // Prevent rendering until authentication is checked
+
+    return (
+        <>
+            <Head>
+                <title>Bible Studies - Sanctuary App</title>
+                <meta name="description" content="Generated by create next app" />
+                <meta name="viewport" content="width=device-width, initial-scale=1" />
+                <link rel="icon" href="/favicon.ico" />
+            </Head>
+
+            <SanctuaryMenu />
+
+            <div style={{ marginLeft: '240px', padding: '20px' }}>
+                <h1 style={{ textAlign: "center", padding: '3rem 0' }}>Welcome {user?.displayName}</h1>
+                <p>Start a new bible study:</p>
+                <div style={{ display: 'flex', justifyContent: 'start', alignItems: 'center' }}>
+                    <Card onClick={newBibleStudyFromBook} sx={{ margin: 2, backgroundColor: 'white', borderRadius: 2, width: '150px' }}>
+                        <CardContent>
+                            <h3>From Book of the Bible</h3>
+                        </CardContent>
+                    </Card>
+                    <Card onClick={newSermonFromTopic} sx={{ margin: 2, backgroundColor: 'white', borderRadius: 2, width: '150px' }}>
+                        <CardContent>
+                            <h3>From Topic</h3>
+                        </CardContent>
+                    </Card>
+                </div>
+                {bibleStudies && (
+                    <>
+                        <h3>Your Bible Studies:</h3>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'start', alignItems: 'center' }}>
+                            {bibleStudies.map((bibleStudy, index) => (
+                                <Card key={index} sx={{ margin: 2, backgroundColor: 'white', borderRadius: 2, width: '300px' }} onClick={() => { router.push('/bible-studies/' + bibleStudy.id) }}>
+                                    <CardContent>
+                                        <p style={{ fontWeight: 700 }}>{bibleStudy.title}</p>
+                                        <p>{bibleStudy.scripture}</p>
+                                    </CardContent>
+                                </Card>
+                            ))}
+                        </div>
+                    </>
+
+                )}
+
+            </div>
+            <Dialog open={studyModalOpen} onClose={() => setStudyModalOpen(false)} fullWidth maxWidth="md">
+                <DialogContent style={{ padding: '20px' }}>
+                    {studyType == "book" ?
+                        (
+                            <><h2>Select your Book of the bible</h2>
+                                <p>Choose a book of the bible to base your Bible Study on.</p>
+                                <Autocomplete onChange={
+                                    (e, selectedBook) => {
+                                        console.log(e);
+                                        if (selectedBook != null) {
+                                            setBook(selectedBook);
+                                        }
+                                    }
+                                }
+                                    options={books} renderInput={(params) => <TextField {...params} label="Book of the Bible" variant="outlined" fullWidth margin="normal" />}
+                                />
+                                <p>How many lessons should this study contain?</p>
+                                <TextField label="Number of Studies" variant="outlined" fullWidth margin="normal" type="number" onChange={(event) => { setStudyLength(Number(event.currentTarget.value)) }} />
+
+                            </>
+                        )
+                        : studyType == "topic" ?
+                            (<><h2>Select your Topic</h2>
+                                <p>Enter a topic to base your bible study on.</p>
+                                <TextField label="Topic" variant="outlined" fullWidth margin="normal" onChange={(event) => { setTopic(event.currentTarget.value) }} />
+
+                                <p>How many lessons should this study contain?</p>
+                                <TextField label="Number of Studies" variant="outlined" fullWidth margin="normal" type="number" onChange={(event) => { setStudyLength(Number(event.currentTarget.value)) }} />
+
+
+                            </>)
+
+                            : null}
+                </DialogContent>
+                <DialogActions>
+                    <Button startIcon={<AutoAwesome />} variant="contained" onClick={createSermon}>Create</Button>
+                    <Button variant="contained" onClick={() => { setStudyModalOpen(false); setStudyType('') }}>Cancel</Button>
+                </DialogActions>
+            </Dialog>
+
+            <Backdrop open={loading} sx={{ color: '#fff', zIndex: (theme) => theme.zIndex.drawer + 1 }}>
+                <CircularProgress color="inherit" />
+            </Backdrop>
+        </>
+
+
+    );
+}

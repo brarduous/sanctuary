@@ -33,7 +33,7 @@ export default function Home() {
   useEffect(() => {
     
     const checkAuth = async () => {
-      console.log(getAuth(app).currentUser);
+      const { data: { user } } = await supabase.auth.getUser();
       console.log(user);
       if (!user) {
         router.push('/login'); // Redirect to login if not authenticated

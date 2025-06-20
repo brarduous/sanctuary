@@ -1,63 +1,44 @@
 // filepath: /Users/brandon/Documents/GitHub/sanctuary/sanctuary/src/pages/login.tsx
 import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
-
-
-// Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
-import { getDatabase, ref, set } from "firebase/database";
-import { doc, setDoc } from "firebase/firestore"; 
-
-import { getAnalytics } from "firebase/analytics";
-import {getAuth, getRedirectResult, signInWithPopup, signInWithRedirect} from "firebase/auth";
-import { GoogleAuthProvider } from "firebase/auth";
-
-import { app, db, auth, provider, firestore } from "@/utils/firebaseConfig"; // Ensure this path points to your Firebase configuration file
-
-
-
-
+import { GoogleLogin } from '@react-oauth/google';
+import { supabase } from '@/lib/supabaseClient';
 
 export default function Login() {
   const router = useRouter();
   useEffect(() => {
     const checkUser = async () => {
-      const user =  getAuth(app).currentUser;
+      const { data: { user } } = await supabase.auth.getUser();
       console.log(user);
       if (user) {
         router.push('/'); // Redirect to home if already logged in
       }
     };
     checkUser();
-  }, [router, auth]);
+  }, [router]);
 
-  const signInWithGoogle = async () => {
-    signInWithPopup(auth, provider).then((result) => {
-      console.log(result);
-      const credential = GoogleAuthProvider.credentialFromResult(result);
-      const token = credential?.accessToken;
-      const user = result.user;
-      setDoc(doc(firestore, "users", user.uid), {
-        email: user.email,
-        name: user.displayName,
-        profilePicture: user.photoURL,
-        givenName: user.displayName?.split(" ")[0],
-        familyName: user.displayName?.split(" ")[1],   
-      }); 
-
-    set(ref(db, "users/" + user.uid), {
-      email: user.email,
-      name: user.displayName,
-      profilePicture: user.photoURL,
-      givenName: user.displayName?.split(" ")[0],
-      familyName: user.displayName?.split(" ")[1],   
-    });
-   
-      localStorage.setItem("user", JSON.stringify({accessToken: token, email: user.email, name: user.displayName, givenName: user.displayName?.split(" ")[0], familyName: user.displayName?.split(" ")[1]}));
+  const signInWithGoogle = async (credential:any) => {
+    supabase.auth.signInWithIdToken({ provider:'google', token: credential }).then((e) => {
+      console.log(e);
+      const { user, session } = e.data;
+      if (!user) {
+        console.error("Error signing in with Google: ");
+        return;
+      }
+      const token = session?.access_token;
+      console.log(token);
+      localStorage.setItem("accessToken", token || "");
+      localStorage.setItem("refreshToken", session?.refresh_token || "");
+      localStorage.setItem("user", JSON.stringify(user));
+      console.log(user);
       if (user) {
         router.push('/'); // Redirect to home if already logged in
       }
     });
+      
+     
+
+  
     
   }
     
@@ -65,9 +46,15 @@ export default function Login() {
 
   return (
     <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-      <button onClick={signInWithGoogle} style={{ padding: '10px 20px', fontSize: '16px' }}>
-        Sign in with Google
-      </button>
+      <GoogleLogin
+  onSuccess={credentialResponse => {
+    signInWithGoogle(credentialResponse.credential);
+    console.log(credentialResponse);
+  }}
+  onError={() => {
+    console.log('Login Failed');
+  }}
+/>
     </div>
   );
 }

@@ -1,66 +1,66 @@
 import Head from "next/head";
 import Image from "next/image";
-import { AppBar, Autocomplete, Box, Button, Card, CardContent, Dialog, DialogActions, DialogContent, Drawer, ListItemIcon, ListItemText, MenuItem, MenuList, TextField, ThemeProvider, Toolbar, Typography } from "@mui/material";
+import { AppBar, Autocomplete, Backdrop, Box, Button, Card, CardContent, CircularProgress, Dialog, DialogActions, DialogContent, Drawer, ListItemIcon, ListItemText, MenuItem, MenuList, TextField, ThemeProvider, Toolbar, Typography } from "@mui/material";
 import sanctuaryTheme from "@/styles/sanctuaryTheme";
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
 import { supabase } from '@/lib/supabaseClient';
 
-// Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
-import { getDatabase, ref, set } from "firebase/database";
-import { getAnalytics } from "firebase/analytics";
-import {getAuth, getRedirectResult, signInWithPopup, signInWithRedirect} from "firebase/auth";
-import { GoogleAuthProvider } from "firebase/auth";
 
-import { app, saveSermon } from "@/utils/firebaseConfig"; // Ensure this path points to your Firebase configuration file
 
+import { app  } from "@/utils/firebaseConfig"; // Ensure this path points to your Firebase configuration file
+import { saveSermon, getSermons } from "@/utils/supabase";
 
 import HistoryEduIcon from '@mui/icons-material/HistoryEdu';
 import SanctuaryMenu from "@/components/layout/SanctuaryMenu";
 import ScriptureSelector from "@/components/input/ScriptureSelector";
-import { getSermonByScripture, getSermonByTopic } from "@/utils/gemini";
+import { getSermonByScripture } from "@/utils/gemini";
+import { getSermonByTopic } from "@/utils/openai";
+import { AutoAwesome } from "@mui/icons-material";
 
 //create Sermon type
 export type Sermon = {
-    scripture: string;
-    title: string;
-    sermon_outline: string;
-    key_takeaways: string;
-    sermon_body: string;
-    illustration?: string;
   
-  };
+  scripture: string;
+  title: string;
+  sermon_outline: string;
+  key_takeaways: string;
+  sermon_body: string;
+  illustration?: string;
+
+};
 export type Scripture = {
-    book: string;
-    chapter: number;
-    verse: number;
-  };
+  book: string;
+  chapter: number;
+  verse: number;
+};
 
 
-export default function Home() {
+export default function Sermons() {
+
   const router = useRouter();
-  const user = getAuth(app).currentUser;
-
+  const [user, setUser] = useState<any | null>(null);
+  const [sermons, setSermons] = useState<any[]>([]);
   const [authenticated, setAuthenticated] = useState(false);
   const [sermonModalOpen, setSermonModalOpen] = useState(false);
   const [sermonType, setSermonType] = useState('');
-  const [scripture, setScripture] = useState<Scripture | null>(null);
-    const [topic, setTopic] = useState('');
-  
-    function newSermonFromScripture() {
-        setSermonType('scripture');
-        setSermonModalOpen(true);
-    }
-    function newSermonFromTopic() {
-        setSermonType('topic');
-        setSermonModalOpen(true);
-    }
+  const [scripture, setScripture] = useState<any | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [topic, setTopic] = useState('');
+
+  function newSermonFromScripture() {
+    setSermonType('scripture');
+    setSermonModalOpen(true);
+  }
+  function newSermonFromTopic() {
+    setSermonType('topic');
+    setSermonModalOpen(true);
+  }
   useEffect(() => {
-    
+
     const checkAuth = async () => {
-      console.log(getAuth(app).currentUser);
-      console.log(user);
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
       if (!user) {
         router.push('/login'); // Redirect to login if not authenticated
       } else {
@@ -68,101 +68,141 @@ export default function Home() {
       }
     };
     checkAuth();
+    setLoading(false);
   }, [router]);
 
+  useEffect(() => {
+    getSermons().then((e) => {
+      console.log(e);
+      if (e == null) return;
+
+      setSermons(e);
+    });
+
+  }, [])
+
+  async function createSermon() {
+    setSermonModalOpen(false);
+    setLoading(true);
+    if (scripture && sermonType == 'scripture') {
+      const scriptureString = scripture.chapter + " " + scripture.verse + " " + scripture.book;
+      getSermonByScripture(scriptureString).then((e) => {
+        setLoading(false);
+        setSermonModalOpen(false);
+        if (e == null) return;
+        console.log(e);
+        const jsonRegex = /```json\s*([\s\S]*?)\s*```/;
+
+        const match = e.match(jsonRegex);
+
+        if (match && match[1]) {
+          // match[1] contains the captured group (the content inside ```json ... ```)
+          const jsonString = match[1].trim(); // Trim whitespace
+
+          const sermon: Sermon = JSON.parse(jsonString);
+          saveSermon(sermon);
+        } else {
+          console.log("No JSON found in the response.");
+        }
+      });
+    }
+    else if (sermonType == 'topic') {
+      getSermonByTopic(topic).then((e) => {
+        setLoading(false);
+
+        if (e == null) return;
+        console.log(e);
+
+
+        const sermon: Sermon = JSON.parse(e);
+        saveSermon(sermon).then((e) => {
+          console.log("Sermon saved successfully", e);
+        }
+        );
+
+      })
+    }
+  }
   if (!authenticated) return null; // Prevent rendering until authentication is checked
 
   return (
-<>
+    <>
       <Head>
         <title>Sanctuary App</title>
         <meta name="description" content="Generated by create next app" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="icon" href="/favicon.ico" />
       </Head>
-      
+
       <SanctuaryMenu />
-    
-    <div style={{ marginLeft: '240px', padding: '20px' }}>
-        <h1 style={{textAlign:"center", padding:'3rem 0'}}>Welcome {user?.displayName}</h1>
+
+      <div style={{ marginLeft: '240px', padding: '20px' }}>
+        <h1 style={{ textAlign: "center", padding: '3rem 0' }}>Welcome {user?.displayName}</h1>
         <p>Start a new sermon:</p>
         <div style={{ display: 'flex', justifyContent: 'start', alignItems: 'center' }}>
-            <Card onClick={newSermonFromScripture} sx={{  margin: 2, backgroundColor: 'white', borderRadius: 2, width: '150px' }}>
-                <CardContent>
-                <h3>From Scripture</h3>
-                </CardContent>
-            </Card>
-            <Card onClick={newSermonFromTopic} sx={{  margin: 2, backgroundColor: 'white', borderRadius: 2, width: '150px' }}>
-                <CardContent>
-                <h3>From Topic</h3>
-                </CardContent>
-            </Card>
+          <Card onClick={newSermonFromScripture} sx={{ margin: 2, backgroundColor: 'white', borderRadius: 2, width: '150px' }}>
+            <CardContent>
+              <h3>From Scripture</h3>
+            </CardContent>
+          </Card>
+          <Card onClick={newSermonFromTopic} sx={{ margin: 2, backgroundColor: 'white', borderRadius: 2, width: '150px' }}>
+            <CardContent>
+              <h3>From Topic</h3>
+            </CardContent>
+          </Card>
         </div>
+        {sermons && (
+          <>
+            <h3>Your Sermons:</h3>
+            <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'start', alignItems: 'center' }}>
+              {sermons.map((sermon, index) => (
+                <Card key={index} sx={{ margin: 2, backgroundColor: 'white', borderRadius: 2, width: '300px' }} onClick={() => { router.push('/sermons/' + sermon.id) }}>
+                  <CardContent>
+                    <p style={{ fontWeight: 700 }}>{sermon.title}</p>
+                    <p>{sermon.scripture}</p>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </>
 
-    </div>
-    <Dialog open={sermonModalOpen} onClose={() => setSermonModalOpen(false)} fullWidth maxWidth="md">
-        <DialogContent style={{ padding: '20px' }}>   
-            {sermonType == "scripture"? 
+        )}
+
+      </div>
+      <Dialog open={sermonModalOpen} onClose={() => setSermonModalOpen(false)} fullWidth maxWidth="md">
+        <DialogContent style={{ padding: '20px' }}>
+          {sermonType == "scripture" ?
             (
-            <><h2>Select your Scripture</h2>
-            <p>Choose a scripture to base your sermon on.</p>
-            <ScriptureSelector onSelectionChange={(selectedScripture) => {console.log(selectedScripture); setScripture(selectedScripture)}} />
-            </>
+              <><h2>Select your Scripture</h2>
+                <p>Choose a scripture to base your sermon on.</p>
+                <ScriptureSelector onSelectionChange={
+                  (selectedScripture) => {
+                    console.log(selectedScripture);
+                    if (selectedScripture != null) {
+                      setScripture(selectedScripture);
+                    }
+                  }
+                } />
+              </>
             )
             : sermonType == "topic" ?
-            (<><h2>Select your Topic</h2>
-            <p>Choose a topic to base your sermon on.</p>
-            <TextField label="Topic" variant="outlined" fullWidth margin="normal" onChange={(event)=>{setTopic(event.currentTarget.value)}} />
-            </>)
-            : null}
+              (<><h2>Select your Topic</h2>
+                <p>Choose a topic to base your sermon on.</p>
+                <TextField label="Topic" variant="outlined" fullWidth margin="normal" onChange={(event) => { setTopic(event.currentTarget.value) }} />
+              </>)
+              : null}
         </DialogContent>
         <DialogActions>
-        <Button variant="contained" onClick={() => { 
-          if(scripture && sermonType == 'scripture'){
-            const scriptureString = scripture.chapter + " " + scripture.verse + " " + scripture.book;
-            getSermonByScripture(scriptureString).then((e) =>{
-                if(e == null) return;
-                console.log(e);
-                const jsonRegex = /```json\s*([\s\S]*?)\s*```/;
-
-                const match = e.match(jsonRegex);
-
-                if (match && match[1]) {
-                    // match[1] contains the captured group (the content inside ```json ... ```)
-                    const jsonString = match[1].trim(); // Trim whitespace
-
-                    const sermon: Sermon = JSON.parse(jsonString);
-                    saveSermon(sermon);
-                }else{
-                    console.log("No JSON found in the response.");
-                }
-              });
-            }
-          else if(sermonType == 'topic'){ 
-            getSermonByTopic(topic).then((e) =>{
-                if(e == null) return;
-                console.log(e);
-                const jsonRegex = /```json\s*([\s\S]*?)\s*```/;
-
-                const match = e.match(jsonRegex);
-
-                if (match && match[1]) {
-                    // match[1] contains the captured group (the content inside ```json ... ```)
-                    const jsonString = match[1].trim(); // Trim whitespace
-
-                    const sermon: Sermon = JSON.parse(jsonString);
-                    saveSermon(sermon);
-                }else{
-                    console.log("No JSON found in the response.");
-                }
-            }) } }}>Select</Button>
-        <Button variant="contained" onClick={() => {setSermonModalOpen(false); setSermonType('')} }>Cancel</Button>
+          <Button startIcon={<AutoAwesome />} variant="contained" onClick={createSermon}>Create</Button>
+          <Button variant="contained" onClick={() => { setSermonModalOpen(false); setSermonType('') }}>Cancel</Button>
         </DialogActions>
-    </Dialog>
-    
-    
+      </Dialog>
+
+      <Backdrop open={loading} sx={{ color: '#fff', zIndex: (theme) => theme.zIndex.drawer + 1 }}>
+        <CircularProgress color="inherit" />
+      </Backdrop>
     </>
 
-    
+
   );
 }
