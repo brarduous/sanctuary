@@ -1,6 +1,6 @@
 import Head from "next/head";
 import Image from "next/image";
-import { AppBar, Autocomplete, Backdrop, Box, Button, Card, CardContent, CircularProgress, Dialog, DialogActions, DialogContent, Drawer, ListItemIcon, ListItemText, MenuItem, MenuList, TextField, ThemeProvider, Toolbar, Typography } from "@mui/material";
+import { AppBar, Autocomplete, Backdrop, Box, Button, Card, CardActions, CardContent, CircularProgress, Dialog, DialogActions, DialogContent, Drawer, ListItemIcon, ListItemText, MenuItem, MenuList, TextField, ThemeProvider, Toolbar, Typography } from "@mui/material";
 import sanctuaryTheme from "@/styles/sanctuaryTheme";
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
@@ -9,14 +9,14 @@ import { supabase } from '@/lib/supabaseClient';
 
 
 import { app  } from "@/utils/firebaseConfig"; // Ensure this path points to your Firebase configuration file
-import { saveSermon, getSermons } from "@/utils/supabase";
+import { saveSermon, getSermons, getProfile } from "@/utils/supabase";
 
 import HistoryEduIcon from '@mui/icons-material/HistoryEdu';
 import SanctuaryMenu from "@/components/layout/SanctuaryMenu";
 import ScriptureSelector from "@/components/input/ScriptureSelector";
-import { getSermonByScripture } from "@/utils/gemini";
-import { getSermonByTopic } from "@/utils/openai";
+import { getSermonByTopic, getSermonByScripture } from "@/utils/openai";
 import { AutoAwesome } from "@mui/icons-material";
+import { redirect } from "next/dist/server/api-utils";
 
 //create Sermon type
 export type Sermon = {
@@ -41,6 +41,7 @@ export default function Sermons() {
   const router = useRouter();
   const [user, setUser] = useState<any | null>(null);
   const [sermons, setSermons] = useState<any[]>([]);
+  const [userProfile, setUserProfile] = useState<any | null>(null);
   const [authenticated, setAuthenticated] = useState(false);
   const [sermonModalOpen, setSermonModalOpen] = useState(false);
   const [sermonType, setSermonType] = useState('');
@@ -79,6 +80,14 @@ export default function Sermons() {
       setSermons(e);
     });
 
+    getProfile().then((profile) => {
+      console.log(profile);
+      if (profile == null) return;
+      setUserProfile(profile);
+    }).catch((error) => {
+      console.error("Error fetching user profile:", error);
+    });
+
   }, [])
 
   async function createSermon() {
@@ -86,28 +95,25 @@ export default function Sermons() {
     setLoading(true);
     if (scripture && sermonType == 'scripture') {
       const scriptureString = scripture.chapter + " " + scripture.verse + " " + scripture.book;
-      getSermonByScripture(scriptureString).then((e) => {
+      getSermonByScripture(scriptureString, userProfile).then((e) => {
         setLoading(false);
         setSermonModalOpen(false);
-        if (e == null) return;
-        console.log(e);
-        const jsonRegex = /```json\s*([\s\S]*?)\s*```/;
+        
 
-        const match = e.match(jsonRegex);
-
-        if (match && match[1]) {
-          // match[1] contains the captured group (the content inside ```json ... ```)
-          const jsonString = match[1].trim(); // Trim whitespace
-
-          const sermon: Sermon = JSON.parse(jsonString);
-          saveSermon(sermon);
-        } else {
-          console.log("No JSON found in the response.");
-        }
+          const sermon: Sermon = JSON.parse(e);
+          saveSermon(sermon).then((_sermon) => {
+            console.log("Sermon saved successfully", _sermon);
+            // Redirect to the sermon page after saving
+            if (_sermon == null || !_sermon[0]) return;
+            console.log("Redirecting to sermon page with ID:", _sermon[0].sermon_id);
+            // Use Next.js router to redirect
+            router.push('/sermons/' + _sermon[0].sermon_id);
+          });
+       
       });
     }
     else if (sermonType == 'topic') {
-      getSermonByTopic(topic).then((e) => {
+      getSermonByTopic(topic, userProfile).then((e) => {
         setLoading(false);
 
         if (e == null) return;
@@ -115,10 +121,14 @@ export default function Sermons() {
 
 
         const sermon: Sermon = JSON.parse(e);
-        saveSermon(sermon).then((e) => {
-          console.log("Sermon saved successfully", e);
-        }
-        );
+        saveSermon(sermon).then((_sermon) => {
+           console.log("Sermon saved successfully", _sermon);
+            // Redirect to the sermon page after saving
+            if (_sermon == null || !_sermon[0]) return;
+            console.log("Redirecting to sermon page with ID:", _sermon[0].sermon_id);
+            // Use Next.js router to redirect
+            router.push('/sermons/' + _sermon[0].sermon_id);
+        });
 
       })
     }
@@ -156,11 +166,14 @@ export default function Sermons() {
             <h3>Your Sermons:</h3>
             <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'start', alignItems: 'center' }}>
               {sermons.map((sermon, index) => (
-                <Card key={index} sx={{ margin: 2, backgroundColor: 'white', borderRadius: 2, width: '300px' }} onClick={() => { router.push('/sermons/' + sermon.id) }}>
+                <Card key={index} sx={{ margin: 2, backgroundColor: 'white', borderRadius: 2, width: '300px' }} onClick={() => { router.push('/sermons/' + sermon.sermon_id) }}>
                   <CardContent>
                     <p style={{ fontWeight: 700 }}>{sermon.title}</p>
                     <p>{sermon.scripture}</p>
                   </CardContent>
+                  <CardActions>
+                    <Button size="small" onClick={() => { router.push('/sermons/' + sermon.sermon_id) }}>View</Button>
+                  </CardActions>
                 </Card>
               ))}
             </div>

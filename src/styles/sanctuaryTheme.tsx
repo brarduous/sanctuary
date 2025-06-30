@@ -25,11 +25,13 @@ const sanctuaryTheme = createTheme({
       },
       text: {
         primary: 'rgba(0, 0, 0, 0.87)', // Default primary text color
-        secondary: 'rgba(0, 0, 0, 0.6)', // Default secondary text color
+         
+        secondary: '#8A9A5B', // Dark text for better readability
       },
     },
     typography: {
       fontFamily: "'Open Sans', sans-serif", // Default font - you can change this
+      
       // You can also define variants like h1, h2, body1, body2, etc.
       // For example:
       // h6: {
@@ -42,6 +44,7 @@ const sanctuaryTheme = createTheme({
     },
     // You can further customize components' style overrides here if needed
     components: {
+      
       // Example: Customizing the AppBar
       MuiAppBar: {
         styleOverrides: {
@@ -54,13 +57,31 @@ const sanctuaryTheme = createTheme({
         styleOverrides: { 
           paper: {
             width: 240, // Width of the drawer
-            backgroundColor: '#8A9A5B', // Gentle Sage for the drawer background
-            color: '#FFFFFF', // White text in the drawer
+            backgroundColor: '#ffffff', // white
+            color: '#262B2E', // dark text in the drawer
             padding: '20px 40px', // Padding for the drawer content
           },
         },
       },
-   
+      MuiCard:{
+        styleOverrides: {
+          root: {
+            marginBottom: '20px', // Margin between cards
+            h1:{
+              paddingBottom: '10px',
+            },
+            h2:{
+              paddingBottom: '10px',
+            },
+           
+            p:{
+              paddingBottom: '10px',
+            }
+            
+          },
+          
+        },
+      },
       // Example: Customizing buttons
       MuiButton: {
         styleOverrides: {

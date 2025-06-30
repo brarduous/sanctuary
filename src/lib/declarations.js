@@ -67,3 +67,11 @@ export const books = [
     "Jude",
     "Revelation"
 ];
+
+export const bibleStudyMethods = [
+'Expository - Verse by Verse Study',
+'Topical - Thematic Study',
+'Biographical - Character Study',
+'Word Study - In-depth Study of Key Terms',
+'Devotional - Reflective Study',
+]

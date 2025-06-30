@@ -6,7 +6,7 @@ import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
 import { supabase } from '@/lib/supabaseClient';
 
-import {books} from "@/lib/declarations";
+import {books, bibleStudyMethods} from "@/lib/declarations";
 
 
 import { app } from "@/utils/firebaseConfig"; // Ensure this path points to your Firebase configuration file
@@ -51,6 +51,7 @@ export default function BibleStudies() {
     const [authenticated, setAuthenticated] = useState(false);
     const [studyModalOpen, setStudyModalOpen] = useState(false);
     const [studyType, setStudyType] = useState('');
+    const [studyMethod, setStudyMethod] = useState(''); // 'book' or 'topic'
     const [book, setBook] = useState<any | null>(null);
     const [studyLength, setStudyLength] = useState(Number);
     const [loading, setLoading] = useState(true);
@@ -93,7 +94,8 @@ export default function BibleStudies() {
         setStudyModalOpen(false);
         setLoading(true);
         if (book && studyType == 'book') {
-            getBibleStudy(book, studyLength).then((e) => {
+            
+            getBibleStudy("The Book of "+ book, studyLength, studyMethod).then((e) => {
                 setLoading(false);
                 setStudyModalOpen(false);
                 if (e == null) return;
@@ -102,18 +104,26 @@ export default function BibleStudies() {
                 const bibleStudy: BibleStudy = JSON.parse(e);
                 const bibleStudyLessons = bibleStudy.studies;
                 delete bibleStudy.studies;
-                saveBibleStudy(bibleStudy);
+                saveBibleStudy(bibleStudy).then((study) => {
+                    let study_id = study.study_id;
                 bibleStudyLessons?.forEach((lesson, index) => {
                     lesson.lesson_number = index + 1;
+                    lesson.study_id = study_id;
                     saveBibleStudyLesson(lesson).then((e) => {
                         console.log("Lesson saved successfully", e);
+                        //redirect to the newly created bible study if this is the last lesson
+                        if (index == bibleStudyLessons.length - 1){
+                        router.push('/bible-studies/' + study.study_id);
+                        }
                     });
                 });
-
+                // Redirect to the newly created bible study
+                //router.push('/bible-studies/' + study.study_id);
+                });
             });
         }
         else if (studyType == 'topic') {
-            getBibleStudy(topic, studyLength).then((e) => {
+            getBibleStudy(topic, studyLength, studyMethod).then((e) => {
                 setLoading(false);
 
                 if (e == null) return;
@@ -131,7 +141,10 @@ export default function BibleStudies() {
                         saveBibleStudyLesson(lesson).then((e) => {
                             console.log("Lesson saved successfully", e);
                         });
+
                     });
+                    // Redirect to the newly created bible study
+                    router.push('/bible-studies/' + study.study_id);
                 });
                 
 
@@ -171,7 +184,7 @@ export default function BibleStudies() {
                         <h3>Your Bible Studies:</h3>
                         <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'start', alignItems: 'center' }}>
                             {bibleStudies.map((bibleStudy, index) => (
-                                <Card key={index} sx={{ margin: 2, backgroundColor: 'white', borderRadius: 2, width: '300px' }} onClick={() => { router.push('/bible-studies/' + bibleStudy.id) }}>
+                                <Card key={index} sx={{ margin: 2, backgroundColor: 'white', borderRadius: 2, width: '300px' }} onClick={() => { router.push('/bible-studies/' + bibleStudy.study_id) }}>
                                     <CardContent>
                                         <p style={{ fontWeight: 700 }}>{bibleStudy.title}</p>
                                         <p>{bibleStudy.scripture}</p>
@@ -200,6 +213,17 @@ export default function BibleStudies() {
                                 }
                                     options={books} renderInput={(params) => <TextField {...params} label="Book of the Bible" variant="outlined" fullWidth margin="normal" />}
                                 />
+                                <p>Choose a Bible Study Method.</p>
+                                <Autocomplete onChange={
+                                    (e, studyMethod) => {
+                                        console.log(e);
+                                        if (studyMethod != null) {
+                                            setStudyMethod(studyMethod);
+                                        }
+                                    }
+                                }
+                                    options={bibleStudyMethods} renderInput={(params) => <TextField {...params} label="Bible Study Method" variant="outlined" fullWidth margin="normal" />}
+                                />
                                 <p>How many lessons should this study contain?</p>
                                 <TextField label="Number of Studies" variant="outlined" fullWidth margin="normal" type="number" onChange={(event) => { setStudyLength(Number(event.currentTarget.value)) }} />
 
@@ -209,7 +233,17 @@ export default function BibleStudies() {
                             (<><h2>Select your Topic</h2>
                                 <p>Enter a topic to base your bible study on.</p>
                                 <TextField label="Topic" variant="outlined" fullWidth margin="normal" onChange={(event) => { setTopic(event.currentTarget.value) }} />
-
+                                <p>Choose a Bible Study Method.</p>
+                                <Autocomplete onChange={
+                                    (e, studyMethod) => {
+                                        console.log(e);
+                                        if (studyMethod != null) {
+                                            setStudyMethod(studyMethod);
+                                        }
+                                    }
+                                }
+                                    options={bibleStudyMethods} renderInput={(params) => <TextField {...params} label="Bible Study Method" variant="outlined" fullWidth margin="normal" />}
+                                />
                                 <p>How many lessons should this study contain?</p>
                                 <TextField label="Number of Studies" variant="outlined" fullWidth margin="normal" type="number" onChange={(event) => { setStudyLength(Number(event.currentTarget.value)) }} />
 

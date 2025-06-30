@@ -1,5 +1,25 @@
 import { supabase } from "@/lib/supabaseClient";
 
+export async function getProfile(){
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    console.error("User not authenticated");
+    return null;
+  }
+
+  const { data, error } = await supabase
+    .from("user_profiles")
+    .select("*")
+    .eq("user_id", user.id)
+    .single();
+
+  if (error) {
+    console.error("Error fetching profile:", error);
+    return null;
+  }
+
+  return data;
+}
 export async function getSermons() {
   const { data, error } = await supabase
     .from("sermons")
@@ -17,7 +37,7 @@ export async function getSermonById(id: string) {
     const { data, error } = await supabase
         .from("sermons")
         .select("*")
-        .eq("id", id)
+        .eq("sermon_id", id)
         .single();
     
     if (error) {
@@ -64,11 +84,26 @@ export async function getBibleStudyById(id: string) {
     const { data, error } = await supabase
         .from("bible_studies")
         .select("*")
-        .eq("id", id)
+        .eq("study_id", id)
         .single();
     
     if (error) {
         console.error("Error fetching bible study by ID:", error);
+        return null;
+    }
+    
+    return data;
+}
+export async function getBibleStudyLessons(studyId: string) {
+
+    const { data, error } = await supabase
+        .from("bible_study_lessons")
+        .select("*")
+        .eq("study_id", studyId)
+        .order("lesson_number", { ascending: true });
+    
+    if (error) {
+        console.error("Error fetching bible study lessons:", error);
         return null;
     }
     

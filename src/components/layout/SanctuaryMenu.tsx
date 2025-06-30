@@ -21,21 +21,21 @@ export default function SanctuaryMenu() {
     return(
 <Drawer sx={{width: '200px'}} className="dashboard-menu" variant="permanent" anchor="left" open={true}>
               
-              <Typography paddingBottom={'1rem'} fontSize={'1.6rem'}>sanctuary</Typography>
+              <Typography paddingLeft={'16px'} paddingBottom={'1rem'} fontSize={'1.4rem'}>sanctuary</Typography>
           <>
           {user?.displayName}
           </>
           <MenuList>
             <MenuItem onClick={() => router.push('/sermons')}>
               <ListItemIcon>
-                <HistoryEduIcon htmlColor="white" fontSize="small" />
+                <HistoryEduIcon  fontSize="small" />
               </ListItemIcon>
               <ListItemText>Sermons</ListItemText>
             
             </MenuItem>
             <MenuItem onClick={() => router.push('/bible-studies')}>
               <ListItemIcon>
-                <MenuBookOutlined htmlColor="white" fontSize="small" />
+                <MenuBookOutlined  fontSize="small" />
               </ListItemIcon>
               <ListItemText>Bible Studies</ListItemText>
             </MenuItem>
@@ -48,7 +48,7 @@ export default function SanctuaryMenu() {
             }}>  
           
               <ListItemIcon>
-                <Logout htmlColor="white" fontSize="small" />
+                <Logout  fontSize="small" />
               </ListItemIcon>
               <ListItemText>Logout</ListItemText>
             </MenuItem>
