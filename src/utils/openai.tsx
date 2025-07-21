@@ -185,7 +185,7 @@ Generate a JSON object for a parent bible study, with indivdual complete Bible s
     -   'scripture': The primary scripture reference for the lesson.
     -   'key_verse': A single, memorable verse from the scripture that fits the study's focus.
     -   'lesson_aims': An array of 3-4 strings, with each string being a clear, objective-based learning goal tailored to the chosen Blueprint.
-    -   'study_outline': A detailed, hierarchical outline of the lesson's commentary section.
+    -   'study_outline': A detailed, hierarchical outline of the lesson's commentary section in array format.
     -   'introduction': A JSON object with two keys:
         -   'hook': A short, engaging introduction that connects the lesson's theme to a common experience.
         -   'background': A paragraph providing the context for the scripture or topic.

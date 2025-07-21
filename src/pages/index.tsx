@@ -1,6 +1,6 @@
 import Head from "next/head";
 import Image from "next/image";
-import { AppBar, Box, Drawer, ListItemIcon, ListItemText, MenuItem, MenuList, ThemeProvider, Toolbar, Typography } from "@mui/material";
+import { AppBar, Box, Container, Drawer, Grid, ListItemIcon, ListItemText, MenuItem, MenuList, ThemeProvider, Toolbar, Typography } from "@mui/material";
 import sanctuaryTheme from "@/styles/sanctuaryTheme";
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
@@ -18,17 +18,48 @@ import { app } from "@/utils/firebaseConfig"; // Ensure this path points to your
 
 import HistoryEduIcon from '@mui/icons-material/HistoryEdu';
 import SanctuaryMenu from "@/components/layout/SanctuaryMenu";
+import ContentSummaryCard from "@/components/molecules/ContentSummaryCard";
+import Greeting from "@/components/molecules/Salutation";
+import UserProfileCard from "@/components/molecules/UserProfileCard";
+import { getBibleStudies, getSermons } from "@/utils/supabase";
 
 
 
 
 export default function Home() {
   const router = useRouter();
-  const user = getAuth(app).currentUser;
-
+  const [user, setUser] = useState<any>(null);
+  const [firstName, setFirstName] = useState('Guest');
+  const [userProfile, setUserProfile] = useState<any>({firstName: 'Guest', lastName: ''});
   const [authenticated, setAuthenticated] = useState(false);
+
+  const [sermons, setSermons] = useState<any[]>([]);
+  const [bibleStudies, setBibleStudies] = useState<any[]>([]);
+  const [profile, setProfile] = useState<any>(null);
   
   
+  
+
+  const handleViewAllSermons = () => {
+    // Implement navigation to sermons page
+    console.log('View All Sermons');
+    router.push('/sermons');
+  };
+
+
+
+    const handleViewAllBibleStudies = () => {
+    // Implement navigation to bible studies page
+    console.log('View All Bible Studies');
+    router.push('/bible-studies');
+  };
+
+
+
+  const handleEditProfile = () => {
+    // Implement navigation to edit profile page
+    console.log('Edit Profile');
+  };
 
   useEffect(() => {
     
@@ -38,12 +69,38 @@ export default function Home() {
       if (!user) {
         router.push('/login'); // Redirect to login if not authenticated
       } else {
+        console.log("User is authenticated:", user);
+       setUser(user);
         setAuthenticated(true);
       }
     };
     checkAuth();
   }, [router]);
 
+  useEffect(() => {
+    setFirstName((user?.user_metadata?.full_name)?.split(' ')[0]);
+    setUserProfile({firstName: user?.user_metadata?.full_name.split(' ')[0] || 'Guest', lastName: user?.user_metadata?.full_name.split(' ')[1] || ''});
+
+    getSermons().then((data) => {
+      if (data) {
+        setSermons(data);
+      } else {
+        console.error("Failed to fetch sermons");
+      }
+    }).catch((error) => {
+      console.error("Error fetching sermons:", error);
+    });
+    getBibleStudies().then((data) => {
+      if (data) {
+        setBibleStudies(data);
+      } else {
+        console.error("Failed to fetch bible studies");
+      }
+    }).catch((error) => {
+      console.error("Error fetching bible studies:", error);
+    }); 
+    
+  }, [user]);
   if (!authenticated) return null; // Prevent rendering until authentication is checked
 
   return (
@@ -56,7 +113,22 @@ export default function Home() {
       </Head>
       
       <SanctuaryMenu />
-        
+      <Container style={{ marginLeft: '240px', padding: '20px' }}>
+      <Greeting firstName={firstName} />
+      <Grid container spacing={3}>
+          <ContentSummaryCard
+            title="Sermons"
+            itemCount={sermons?.length || 0}
+            onViewAll={handleViewAllSermons}
+          />
+          <ContentSummaryCard
+            title="Bible Studies"
+            itemCount={bibleStudies?.length || 0}
+            onViewAll={handleViewAllBibleStudies}
+          />
+          <UserProfileCard userProfile={userProfile} onEdit={handleEditProfile} />
+      </Grid>
+    </Container>
     
     </>
 

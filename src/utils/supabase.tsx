@@ -46,7 +46,27 @@ export async function getSermonById(id: string) {
     }
     
     return data;
-}   
+}
+export async function updateSermon(sermon: any) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+        console.error("User not authenticated");
+        return null;
+    }   
+
+  const { data, error } = await supabase
+    .from("sermons")
+    .update(sermon)
+    .eq("sermon_id", sermon.sermon_id)
+    .select("*");
+
+  if (error) {
+    console.error("Error updating sermon:", error);
+    return null;
+  }
+
+  return data[0];
+} 
 export async function saveSermon(sermon: any) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
