@@ -26,7 +26,7 @@ import {
 import HistoryEduIcon from '@mui/icons-material/HistoryEdu';
 import AccountCircle from '@mui/icons-material/AccountCircle'; // Icon for avatar fallback
 
-import { getBibleStudyById, getBibleStudyLessons } from "@/utils/supabase";
+import { getBibleStudyById, getBibleStudyLessons } from "@/lib/db";
 import { supabase } from '@/lib/supabaseClient'; // For authentication
 
 // Define BibleStudy and Lesson types (ensure they match your database structure)

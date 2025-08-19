@@ -1,18 +1,20 @@
 import Head from "next/head";
-import { AppBar, Box, Button, Card, CardActions, CardContent, CircularProgress, Dialog, DialogActions, DialogContent, TextField, Toolbar, Typography, Container, Grid, Backdrop, IconButton, Avatar, Menu, MenuItem } from "@mui/material";
+import { AppBar, Box, Button, Card, CardActions, CardContent, CircularProgress, Dialog, DialogActions, DialogContent, TextField, Toolbar, Typography, Container, Grid, Backdrop, IconButton, Avatar, Menu, MenuItem, Snackbar } from "@mui/material";
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
 import { supabase } from '@/lib/supabaseClient';
 
 // Assuming these are correctly configured and available
 import { app } from "@/utils/firebaseConfig";
-import { saveSermon, getSermons, getProfile } from "@/utils/supabase";
+import { saveSermon, getSermons, getProfile } from "@/lib/db";
 
 import HistoryEduIcon from '@mui/icons-material/HistoryEdu';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'; // Using AutoAwesomeIcon for consistency
 import ScriptureSelector from "@/components/input/ScriptureSelector";
 import { getSermonByTopic, getSermonByScripture } from "@/utils/openai";
+import { generateSermonByTopicBackend, generateSermonByScriptureBackend } from "@/lib/api"; // Importing backend functions
 import AccountCircle from '@mui/icons-material/AccountCircle'; // Icon for avatar fallback
+import { set } from "firebase/database";
 
 // Define Sermon and Scripture types
 export type Sermon = {
@@ -43,6 +45,9 @@ export default function Sermons() {
   const [loading, setLoading] = useState(true);
   const [topic, setTopic] = useState('');
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null); // State for avatar menu anchor
+
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
 
   const isMenuOpen = Boolean(anchorEl);
 
@@ -132,24 +137,20 @@ export default function Sermons() {
     setLoading(true);
 
     try {
-      let sermonContent: string | null = null;
+      let sermonContent: any | null = null;
 
       if (sermonType === 'scripture' && scripture) {
         const scriptureString = `${scripture.book} ${scripture.chapter}:${scripture.verse}`;
-        sermonContent = await getSermonByScripture(scriptureString, userProfile);
+        sermonContent = await generateSermonByScriptureBackend(user.id, scriptureString, userProfile);
       } else if (sermonType === 'topic' && topic) {
-        sermonContent = await getSermonByTopic(topic, userProfile);
+        sermonContent = await generateSermonByTopicBackend(user.id, topic, userProfile);
       }
 
       if (sermonContent) {
-        const sermon: Sermon = JSON.parse(sermonContent);
-        const savedSermon = await saveSermon(sermon);
-
-        if (savedSermon && savedSermon[0] && savedSermon[0].sermon_id) {
-          console.log("Sermon saved successfully", savedSermon[0]);
-          router.push(`/sermons/${savedSermon[0].sermon_id}`);
-        } else {
-          console.error("Failed to save sermon or retrieve sermon ID.");
+        if ( sermonContent.message == "Sermon generation initiated." ){
+          // display snackbar saying that sermon generation has been started, and will be available as soon as it completes
+          setSnackbarMessage("Sermon generation initiated. It will be available once completed.");
+          setSnackbarOpen(true);
         }
       } else {
         console.warn("No sermon content generated.");
@@ -380,6 +381,20 @@ export default function Sermons() {
           </Button>
         </DialogActions>
       </Dialog>
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={6000}
+        onClose={() => setSnackbarOpen(false)}
+        message={snackbarMessage}
+        action={
+          <Button color="inherit" onClick={() => setSnackbarOpen(false)}>
+            Close
+          </Button>
+        }
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        sx={{ bottom: 80 }} // Adjusted to avoid overlap with the AppBar  
+        TransitionProps={{ onExited: () => setSnackbarMessage('') }} // Clear message after closing
+      />
     </>
   );
 }

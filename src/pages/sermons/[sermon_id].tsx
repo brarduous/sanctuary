@@ -33,7 +33,7 @@ import MoreVertIcon from '@mui/icons-material/MoreVert'; // For the options menu
 import CloseIcon from '@mui/icons-material/Close'; // For preach mode close button
 import AccountCircle from '@mui/icons-material/AccountCircle'; // Icon for avatar fallback
 
-import { getSermonById, updateSermon, getProfile } from "@/utils/supabase"; // Assuming updateSermon and getProfile exist
+import { getSermonById, updateSermon, getProfile } from "@/lib/db"; // Assuming updateSermon and getProfile exist
 import { supabase } from '@/lib/supabaseClient'; // For authentication
 import { Marked, marked } from 'marked'; // For Markdown to HTML conversion
 import { update } from "firebase/database";

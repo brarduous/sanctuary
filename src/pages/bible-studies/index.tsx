@@ -1,5 +1,5 @@
 import Head from "next/head";
-import { AppBar, Autocomplete, Backdrop, Box, Button, Card, CardContent, CircularProgress, Dialog, DialogActions, DialogContent, TextField, Toolbar, Typography, Container, Grid, IconButton, Avatar, Menu, MenuItem } from "@mui/material";
+import { AppBar, Autocomplete, Backdrop, Box, Button, Card, CardContent, CircularProgress, Dialog, DialogActions, DialogContent, TextField, Toolbar, Typography, Container, Grid, IconButton, Avatar, Menu, MenuItem, Snackbar } from "@mui/material";
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
 import { supabase } from '@/lib/supabaseClient';
@@ -7,12 +7,13 @@ import { supabase } from '@/lib/supabaseClient';
 import { books, bibleStudyMethods } from "@/lib/declarations";
 
 import { app } from "@/utils/firebaseConfig"; // Ensure this path points to your Firebase configuration file
-import { saveSermon, getSermons, saveBibleStudy, getBibleStudies, saveBibleStudyLesson } from "@/utils/supabase";
+import { saveSermon, getSermons, saveBibleStudy, getBibleStudies, saveBibleStudyLesson } from "@/lib/db";
 
 import HistoryEduIcon from '@mui/icons-material/HistoryEdu';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import AccountCircle from '@mui/icons-material/AccountCircle'; // Icon for avatar fallback
 import { getBibleStudy } from "@/utils/openai";
+import { generateBibleStudyBackend } from "@/lib/api";
 
 //create Bible Study type
 export type BibleStudy = {
@@ -51,7 +52,8 @@ export default function BibleStudies() {
     const [loading, setLoading] = useState(true);
     const [topic, setTopic] = useState('');
     const [avatarAnchorEl, setAvatarAnchorEl] = useState<null | HTMLElement>(null); // For avatar menu
-
+    const [snackbarMessage, setSnackbarMessage] = useState('');
+    const [snackbarOpen, setSnackbarOpen] = useState(false);
     const isAvatarMenuOpen = Boolean(avatarAnchorEl);
 
     // Handlers for avatar menu
@@ -126,33 +128,15 @@ export default function BibleStudies() {
             let generatedStudy: string | null = null;
 
             if (studyType === 'book' && book) {
-                generatedStudy = await getBibleStudy(`The Book of ${book}`, studyLength, studyMethod);
+                generatedStudy = await generateBibleStudyBackend(user.id, `The Book of ${book}`, studyLength, studyMethod);
             } else if (studyType === 'topic' && topic) {
-                generatedStudy = await getBibleStudy(topic, studyLength, studyMethod);
+                generatedStudy = await generateBibleStudyBackend(user.id, topic, studyLength, studyMethod);
             }
 
             if (generatedStudy) {
-                const bibleStudy: BibleStudy = JSON.parse(generatedStudy);
-                const bibleStudyLessons = bibleStudy.studies;
-                delete bibleStudy.studies; // Remove studies before saving the main study
-
-                const savedStudy = await saveBibleStudy(bibleStudy);
-                if (savedStudy && savedStudy.study_id) {
-                    const study_id = savedStudy.study_id;
-
-                    if (bibleStudyLessons && bibleStudyLessons.length > 0) {
-                        for (let i = 0; i < bibleStudyLessons.length; i++) {
-                            const lesson = bibleStudyLessons[i];
-                            lesson.lesson_number = i + 1;
-                            lesson.study_id = study_id;
-                            await saveBibleStudyLesson(lesson);
-                            console.log("Lesson saved successfully");
-                        }
-                    }
-                    router.push('/bible-studies/' + study_id);
-                } else {
-                    console.error("Failed to save bible study or retrieve study ID.");
-                }
+                //snackbar message
+                setSnackbarMessage("Bible study generation initiated. It will be available once completed.");   
+                setSnackbarOpen(true);
             } else {
                 console.warn("No bible study content generated.");
             }
@@ -433,6 +417,17 @@ export default function BibleStudies() {
                     </Button>
                 </DialogActions>
             </Dialog>
+            <Snackbar 
+                open={snackbarOpen}
+                autoHideDuration={6000}
+                onClose={() => setSnackbarOpen(false)}
+                message={snackbarMessage}
+                action={
+                    <Button color="inherit" onClick={() => setSnackbarOpen(false)}>
+                        Close
+                    </Button>
+                }
+            />
         </>
     );
 }

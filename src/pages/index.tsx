@@ -21,7 +21,7 @@ import SanctuaryMenu from "@/components/layout/SanctuaryMenu";
 import ContentSummaryCard from "@/components/molecules/ContentSummaryCard";
 import Greeting from "@/components/molecules/Salutation";
 import UserProfileCard from "@/components/molecules/UserProfileCard";
-import { getBibleStudies, getSermons } from "@/utils/supabase";
+import { getBibleStudies, getSermons } from "@/lib/db";
 
 
 
